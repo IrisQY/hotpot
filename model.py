@@ -7,19 +7,17 @@ import numpy as np
 import math
 from torch.nn import init
 from torch.nn.utils import rnn
-# from allennlp.modules.elmo import Elmo, batch_to_ids
-#
-# options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
-# weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+from allennlp.modules.elmo import Elmo, batch_to_ids
+
+options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
 class Model(nn.Module):
     def __init__(self, config, word_mat, char_mat):
         super().__init__()
         self.config = config
-        self.word_dim = config.glove_dim
-        self.word_emb = nn.Embedding(len(word_mat), len(word_mat[0]), padding_idx=0)
-        self.word_emb.weight.data.copy_(torch.from_numpy(word_mat))
-        self.word_emb.weight.requires_grad = False
+        self.word_dim = 1024
+        self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
         self.char_emb = nn.Embedding(len(char_mat), len(char_mat[0]), padding_idx=0)
         self.char_emb.weight.data.copy_(torch.from_numpy(char_mat))
 
@@ -27,8 +25,8 @@ class Model(nn.Module):
         self.char_hidden = config.char_hidden
         self.hidden = config.hidden
 
-        self.rnn = EncoderRNN(config.char_hidden+self.word_dim, config.hidden, 1, True, True, 1-config.keep_prob, False)
 
+        self.rnn = EncoderRNN(config.char_hidden+self.word_dim, config.hidden, 1, True, True, 1-config.keep_prob, False)
         self.qc_att = BiAttention(config.hidden*2, 1-config.keep_prob)
         self.linear_1 = nn.Sequential(
                 nn.Linear(config.hidden*8, config.hidden),
@@ -53,7 +51,7 @@ class Model(nn.Module):
 
         self.rnn_type = EncoderRNN(config.hidden*3+1, config.hidden, 1, False, True, 1-config.keep_prob, False)
         self.linear_type = nn.Linear(config.hidden*2, 3)
-
+        self.avgpool = torch.nn.AvgPool1d(kernel_size = 50)
         self.cache_S = 0
 
     def get_output_mask(self, outer):
@@ -68,8 +66,9 @@ class Model(nn.Module):
     def forward(self, context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False):
         para_size, ques_size, char_size, bsz = context_idxs.size(1), ques_idxs.size(1), context_char_idxs.size(2), context_idxs.size(0)
 
-        context_mask = (context_idxs > 0).float()
-        ques_mask = (ques_idxs > 0).float()
+        context_mask = (self.avgpool(context_idxs.float()).squeeze() > 0).float()
+        # originally it was 2d, using a avgmask to restore the mask to 2d
+        ques_mask = (self.avgpool(ques_idxs.float()).squeeze() > 0).float()
 
         context_ch = self.char_emb(context_char_idxs.contiguous().view(-1, char_size)).view(bsz * para_size, char_size, -1)
         ques_ch = self.char_emb(ques_char_idxs.contiguous().view(-1, char_size)).view(bsz * ques_size, char_size, -1)
@@ -77,10 +76,16 @@ class Model(nn.Module):
         context_ch = self.char_cnn(context_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, para_size, -1)
         ques_ch = self.char_cnn(ques_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, ques_size, -1)
 
-        context_word = self.word_emb(context_idxs)
-        ques_word = self.word_emb(ques_idxs)
+        context_word = self.elmo(context_idxs)['elmo_representations']
+        context_word = (context_word[0] + context_word[1])
+
+        # ques_word = self.word_emb(ques_idxs)
+        ques_word =  self.elmo(ques_idxs)['elmo_representations']
+        ques_word = (ques_word[0] + ques_word[1])
+
 
         context_output = torch.cat([context_word, context_ch], dim=2)
+        print('after concatenation: ', context_output.size())
         ques_output = torch.cat([ques_word, ques_ch], dim=2)
 
         context_output = self.rnn(context_output, context_lens)
@@ -125,6 +130,7 @@ class Model(nn.Module):
         yp1 = outer.max(dim=2)[0].max(dim=1)[1]
         yp2 = outer.max(dim=1)[0].max(dim=1)[1]
         return logit1, logit2, predict_type, predict_support, yp1, yp2
+
 
 class LockedDropout(nn.Module):
     def __init__(self, dropout):

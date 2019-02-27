@@ -19,6 +19,11 @@ nlp = spacy.blank("en")
 import bisect
 import re
 
+from allennlp.modules.elmo import Elmo, batch_to_ids
+
+options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+
 def find_nearest(a, target, test_func=lambda x: True):
     idx = bisect.bisect_left(a, target)
     if (0 <= idx < len(a)) and a[idx] == target:
@@ -259,10 +264,20 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
 
         total += 1
 
-        context_idxs = np.zeros(para_limit, dtype=np.int64)
-        context_char_idxs = np.zeros((para_limit, char_limit), dtype=np.int64)
-        ques_idxs = np.zeros(ques_limit, dtype=np.int64)
-        ques_char_idxs = np.zeros((ques_limit, char_limit), dtype=np.int64)
+        # ###
+        # context_str = example['context_tokens']
+        # ques_str = example['ques_tokens']
+        # context_idxs_n = batch_to_ids(context_str)
+        # print(context_idxs_n.size())
+        # ques_idxs_n = batch_to_ids(ques_str)
+        # print(ques_idxs_n.size())
+        # context_idxs = np.zeros(para_limit, dtype=np.int64)
+        # ###
+
+        context_idxs = torch.LongTensor(para_limit, 50).zero_()
+        context_char_idxs = torch.LongTensor(para_limit, char_limit).zero_()
+        ques_idxs = torch.LongTensor(ques_limit, 50).zero_()
+        ques_char_idxs = torch.LongTensor(ques_limit, char_limit).zero_()
 
         def _get_word(word):
             for each in (word, word.lower(), word.capitalize(), word.upper()):
@@ -275,8 +290,16 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
                 return char2idx_dict[char]
             return 1
 
-        context_idxs[:len(example['context_tokens'])] = [_get_word(token) for token in example['context_tokens']]
-        ques_idxs[:len(example['ques_tokens'])] = [_get_word(token) for token in example['ques_tokens']]
+        list_of_examples = [example["context_tokens"]]
+        context_idxs_pre_padded = batch_to_ids(list_of_examples).squeeze()
+        context_idxs[:context_idxs_pre_padded.size()[0],:] = context_idxs_pre_padded
+
+        list_of_examples_questions = [example["ques_tokens"]]
+        question_idxs_pre_padded = batch_to_ids(list_of_examples_questions).squeeze()
+        ques_idxs[:question_idxs_pre_padded.size()[0],:] = question_idxs_pre_padded
+
+        # context_idxs[:len(example['context_tokens'])] = [_get_word(token) for token in example['context_tokens']]
+        # ques_idxs[:len(example['ques_tokens'])] = [_get_word(token) for token in example['ques_tokens']]
 
         for i, token in enumerate(example["context_chars"]):
             l = min(len(token), char_limit)
