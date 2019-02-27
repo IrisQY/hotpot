@@ -7,6 +7,10 @@ import numpy as np
 import math
 from torch.nn import init
 from torch.nn.utils import rnn
+# from allennlp.modules.elmo import Elmo, batch_to_ids
+#
+# options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+# weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
 class Model(nn.Module):
     def __init__(self, config, word_mat, char_mat):
