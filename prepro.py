@@ -303,11 +303,13 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
 
         for i, token in enumerate(example["context_chars"]):
             l = min(len(token), char_limit)
-            context_char_idxs[i, :l] = [_get_char(char) for char in token[:l]]
+            # context_char_idxs[i, :l] = [_get_char(char) for char in token[:l]]
+            context_char_idxs[i, :l] = torch.Tensor([_get_char(char) for char in token[:l]])
 
         for i, token in enumerate(example["ques_chars"]):
             l = min(len(token), char_limit)
-            ques_char_idxs[i, :l] = [_get_char(char) for char in token[:l]]
+            # ques_char_idxs[i, :l] = [_get_char(char) for char in token[:l]]
+            ques_char_idxs[i, :l] = torch.Tensor([_get_char(char) for char in token[:l]])
 
         start, end = example["y1s"][-1], example["y2s"][-1]
         y1, y2 = start, end
