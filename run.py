@@ -48,7 +48,7 @@ def train(config):
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
-    torch.cuda.manual_seed_all(config.seed)
+    #torch.cuda.manual_seed_all(config.seed)
     #torch.cpu.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -81,8 +81,8 @@ def train(config):
         model = Model(config, word_mat, char_mat)
 
     logging('nparams {}'.format(sum([p.nelement() for p in model.parameters() if p.requires_grad])))
-    ori_model = model.cuda()
-    #ori_model = model.cpu()
+    #ori_model = model.cuda()
+    ori_model = model.cpu()
     model = nn.DataParallel(ori_model)
 
     lr = config.init_lr
@@ -321,8 +321,8 @@ def test(config):
         model = SPModel(config, word_mat, char_mat)
     else:
         model = Model(config, word_mat, char_mat)
-    ori_model = model.cuda()
-    #ori_model = model.cpu()
+    #ori_model = model.cuda()
+    ori_model = model.cpu()
     ori_model.load_state_dict(torch.load(os.path.join(config.save, 'model.pt')))
     model = nn.DataParallel(ori_model)
 

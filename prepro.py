@@ -6,9 +6,6 @@ from collections import Counter
 import numpy as np
 import os.path
 import argparse
-import torch
-# import pickle
-import torch
 import os
 from joblib import Parallel, delayed
 
@@ -23,6 +20,7 @@ from allennlp.modules.elmo import Elmo, batch_to_ids
 options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
+import scipy.sparse
 
 def find_nearest(a, target, test_func=lambda x: True):
     idx = bisect.bisect_left(a, target)
@@ -246,8 +244,8 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
     else:
         para_limit = config.para_limit
         ques_limit = config.ques_limit
-    para_limit = 2250
-    char_limit = config.char_limit
+    # para_limit = 2250
+    # char_limit = config.char_limit
 
     def filter_func(example):
         return len(example["context_tokens"]) > para_limit or len(example["ques_tokens"]) > ques_limit
@@ -264,59 +262,61 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
 
         total += 1
 
-        context_idxs = torch.LongTensor(para_limit, 50).zero_()
-        context_char_idxs = torch.LongTensor(para_limit, char_limit).zero_()
-        ques_idxs = torch.LongTensor(ques_limit, 50).zero_()
-        ques_char_idxs = torch.LongTensor(ques_limit, char_limit).zero_()
+        # context_idxs = torch.LongTensor(para_limit, 50).zero_()
+        # # context_char_idxs = torch.LongTensor(para_limit, char_limit).zero_()
+        # ques_idxs = torch.LongTensor(ques_limit, 50).zero_()
+        # # ques_char_idxs = torch.LongTensor(ques_limit, char_limit).zero_()
+        #
+        # # def _get_word(word):
+        # #     for each in (word, word.lower(), word.capitalize(), word.upper()):
+        # #         if each in word2idx_dict:
+        # #             return word2idx_dict[each]
+        # #     return 1
+        #
+        # # def _get_char(char):
+        # #     if char in char2idx_dict:
+        # #         return char2idx_dict[char]
+        # #     return 1
+        #
+        # # for i, token in enumerate(example["context_tokens"]):
+        # #     context_idxs[i] = _get_word(token)
+        # list_of_examples = [example["context_tokens"]]
+        # context_idxs_pre_padded = batch_to_ids(list_of_examples).squeeze()
+        # context_idxs[:context_idxs_pre_padded.size()[0],:] = context_idxs_pre_padded
+        #
+        # # for i, token in enumerate(example["ques_tokens"]):
+        # #     ques_idxs[i] = _get_word(token)
+        # list_of_examples_questions = [example["ques_tokens"]]
+        # question_idxs_pre_padded = batch_to_ids(list_of_examples_questions).squeeze()
+        # ques_idxs[:question_idxs_pre_padded.size()[0],:] = question_idxs_pre_padded
+        #
+        # context_idxs = scipy.sparse.csc_matrix(context_idxs.numpy())
+        # ques_idxs = scipy.sparse.csc_matrix(ques_idxs.numpy())
 
-        def _get_word(word):
-            for each in (word, word.lower(), word.capitalize(), word.upper()):
-                if each in word2idx_dict:
-                    return word2idx_dict[each]
-            return 1
-
-        def _get_char(char):
-            if char in char2idx_dict:
-                return char2idx_dict[char]
-            return 1
-
-        # for i, token in enumerate(example["context_tokens"]):
-        #     context_idxs[i] = _get_word(token)
-        list_of_examples = [example["context_tokens"]]
-        context_idxs_pre_padded = batch_to_ids(list_of_examples).squeeze()
-        context_idxs[:context_idxs_pre_padded.size()[0],:] = context_idxs_pre_padded
-
-        # for i, token in enumerate(example["ques_tokens"]):
-        #     ques_idxs[i] = _get_word(token)
-        list_of_examples_questions = [example["ques_tokens"]]
-        question_idxs_pre_padded = batch_to_ids(list_of_examples_questions).squeeze()
-        ques_idxs[:question_idxs_pre_padded.size()[0],:] = question_idxs_pre_padded
-
-        for i, token in enumerate(example["context_chars"]):
-            for j, char in enumerate(token):
-                if j == char_limit:
-                    break
-                context_char_idxs[i, j] = _get_char(char)
-
-        for i, token in enumerate(example["ques_chars"]):
-            for j, char in enumerate(token):
-                if j == char_limit:
-                    break
-                ques_char_idxs[i, j] = _get_char(char)
+        # for i, token in enumerate(example["context_chars"]):
+        #     for j, char in enumerate(token):
+        #         if j == char_limit:
+        #             break
+        #         context_char_idxs[i, j] = _get_char(char)
+        #
+        # for i, token in enumerate(example["ques_chars"]):
+        #     for j, char in enumerate(token):
+        #         if j == char_limit:
+        #             break
+        #         ques_char_idxs[i, j] = _get_char(char)
 
         start, end = example["y1s"][-1], example["y2s"][-1]
         y1, y2 = start, end
 
-        datapoints.append({'context_idxs': context_idxs,
-            'context_char_idxs': context_char_idxs,
-            'ques_idxs': ques_idxs,
-            'ques_char_idxs': ques_char_idxs,
+        datapoints.append({'context_tokens': example['context_tokens'],
+            'context_chars': example['context_chars'],
+            'ques_tokens': example['ques_tokens'],
+            'ques_chars': example['ques_chars'],
             'y1': y1,
             'y2': y2,
             'id': example['id'],
             'start_end_facts': example['start_end_facts']})
     print("Build {} / {} instances of features in total".format(total, total_))
-    # pickle.dump(datapoints, open(out_file, 'wb'), protocol=-1)
     torch.save(datapoints, out_file)
 
 def save(filename, obj, message=None):

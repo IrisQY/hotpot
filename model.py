@@ -85,7 +85,6 @@ class Model(nn.Module):
 
 
         context_output = torch.cat([context_word, context_ch], dim=2)
-        print('after concatenation: ', context_output.size())
         ques_output = torch.cat([ques_word, ques_ch], dim=2)
 
         context_output = self.rnn(context_output, context_lens)
