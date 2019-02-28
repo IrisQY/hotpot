@@ -50,7 +50,7 @@ parser.add_argument('--char_dim', type=int, default=8)
 parser.add_argument('--para_limit', type=int, default=2000)
 parser.add_argument('--ques_limit', type=int, default=80)
 parser.add_argument('--sent_limit', type=int, default=100)
-parser.add_argument('--char_limit', type=int, default=50) #change from 16 to 50
+parser.add_argument('--char_limit', type=int, default=16) #change from 16 to 50
 
 parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--checkpoint', type=int, default=1000)

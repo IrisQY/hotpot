@@ -245,7 +245,7 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
         para_limit = config.para_limit
         ques_limit = config.ques_limit
     # para_limit = 2250
-    # char_limit = config.char_limit
+    char_limit = config.char_limit
 
     def filter_func(example):
         return len(example["context_tokens"]) > para_limit or len(example["ques_tokens"]) > ques_limit
@@ -263,9 +263,9 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
         total += 1
 
         # context_idxs = torch.LongTensor(para_limit, 50).zero_()
-        # # context_char_idxs = torch.LongTensor(para_limit, char_limit).zero_()
+        context_char_idxs = torch.LongTensor(para_limit, char_limit).zero_()
         # ques_idxs = torch.LongTensor(ques_limit, 50).zero_()
-        # # ques_char_idxs = torch.LongTensor(ques_limit, char_limit).zero_()
+        ques_char_idxs = torch.LongTensor(ques_limit, char_limit).zero_()
         #
         # # def _get_word(word):
         # #     for each in (word, word.lower(), word.capitalize(), word.upper()):
@@ -273,10 +273,10 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
         # #             return word2idx_dict[each]
         # #     return 1
         #
-        # # def _get_char(char):
-        # #     if char in char2idx_dict:
-        # #         return char2idx_dict[char]
-        # #     return 1
+        def _get_char(char):
+            if char in char2idx_dict:
+                return char2idx_dict[char]
+            return 1
         #
         # # for i, token in enumerate(example["context_tokens"]):
         # #     context_idxs[i] = _get_word(token)
@@ -293,25 +293,25 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
         # context_idxs = scipy.sparse.csc_matrix(context_idxs.numpy())
         # ques_idxs = scipy.sparse.csc_matrix(ques_idxs.numpy())
 
-        # for i, token in enumerate(example["context_chars"]):
-        #     for j, char in enumerate(token):
-        #         if j == char_limit:
-        #             break
-        #         context_char_idxs[i, j] = _get_char(char)
-        #
-        # for i, token in enumerate(example["ques_chars"]):
-        #     for j, char in enumerate(token):
-        #         if j == char_limit:
-        #             break
-        #         ques_char_idxs[i, j] = _get_char(char)
+        for i, token in enumerate(example["context_chars"]):
+            for j, char in enumerate(token):
+                if j == char_limit:
+                    break
+                context_char_idxs[i, j] = _get_char(char)
+
+        for i, token in enumerate(example["ques_chars"]):
+            for j, char in enumerate(token):
+                if j == char_limit:
+                    break
+                ques_char_idxs[i, j] = _get_char(char)
 
         start, end = example["y1s"][-1], example["y2s"][-1]
         y1, y2 = start, end
 
         datapoints.append({'context_tokens': example['context_tokens'],
-            'context_chars': example['context_chars'],
+            'context_char_idxs': context_char_idxs,
             'ques_tokens': example['ques_tokens'],
-            'ques_chars': example['ques_chars'],
+            'ques_char_idxs': ques_char_idxs,
             'y1': y1,
             'y2': y2,
             'id': example['id'],

@@ -24,8 +24,8 @@ def has_digit(string):
 def prepro(token):
     return token if not has_digit(token) else 'N'
 
-with open("char2idx.json", "r") as fh:
-    char2idx_dict = json.load(fh)
+# with open("char2idx.json", "r") as fh:
+#     char2idx_dict = json.load(fh)
 
 class DataIterator(object):
     def __init__(self, buckets, bsz, para_limit, ques_limit, char_limit, shuffle, sent_limit):
@@ -78,10 +78,10 @@ class DataIterator(object):
         # all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
         # is_support = torch.LongTensor(self.bsz, self.sent_limit).cuda()
 
-        def _get_char(char):
-            if char in char2idx_dict:
-                return char2idx_dict[char]
-            return 1
+        # def _get_char(char):
+        #     if char in char2idx_dict:
+        #         return char2idx_dict[char]
+        #     return 1
 
         while True:
             if len(self.bkt_pool) == 0: break
@@ -105,8 +105,8 @@ class DataIterator(object):
             for i in range(len(cur_batch)):
                 # context_idxs[i].copy_(cur_batch[i]['context_idxs'])
                 # ques_idxs[i].copy_(cur_batch[i]['ques_idxs'])
-                # context_char_idxs[i].copy_(cur_batch[i]['context_char_idxs'])
-                # ques_char_idxs[i].copy_(cur_batch[i]['ques_char_idxs'])
+                context_char_idxs[i].copy_(cur_batch[i]['context_char_idxs'])
+                ques_char_idxs[i].copy_(cur_batch[i]['ques_char_idxs'])
 
 
                 context_idxs_pre_padded = batch_to_ids([cur_batch[i]['context_tokens']]).squeeze()
@@ -115,17 +115,17 @@ class DataIterator(object):
                 question_idxs_pre_padded = batch_to_ids([cur_batch[i]["ques_tokens"]]).squeeze()
                 ques_idxs[i][:question_idxs_pre_padded.size()[0],:] = question_idxs_pre_padded
 
-                for n, token in enumerate(cur_batch[i]["context_chars"]):
-                    for j, char in enumerate(token):
-                        if j == self.char_limit:
-                            break
-                        context_char_idxs[i, n, j] = _get_char(char)
-
-                for n, token in enumerate(cur_batch[i]["ques_chars"]):
-                    for j, char in enumerate(token):
-                        if j == self.char_limit:
-                            break
-                        ques_char_idxs[i, n, j] = _get_char(char)
+                # for n, token in enumerate(cur_batch[i]["context_chars"]):
+                #     for j, char in enumerate(token):
+                #         if j == self.char_limit:
+                #             break
+                #         context_char_idxs[i, n, j] = _get_char(char)
+                #
+                # for n, token in enumerate(cur_batch[i]["ques_chars"]):
+                #     for j, char in enumerate(token):
+                #         if j == self.char_limit:
+                #             break
+                #         ques_char_idxs[i, n, j] = _get_char(char)
 
                 if cur_batch[i]['y1'] >= 0:
                     y1[i] = cur_batch[i]['y1']

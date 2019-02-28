@@ -87,10 +87,12 @@ class SPModel(nn.Module):
         ques_word = self.elmo(ques_idxs)['elmo_representations']
         ques_word = (ques_word[0] + ques_word[1])
 
-
+        # print(context_word.size())
+        # print(context_ch.size())
         context_output = torch.cat([context_word, context_ch], dim=2)
         ques_output = torch.cat([ques_word, ques_ch], dim=2)
 
+        # print(context_output.size())
         context_output = self.rnn(context_output, context_lens)
         ques_output = self.rnn(ques_output)
 
