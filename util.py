@@ -36,7 +36,8 @@ class DataIterator(object):
             self.para_limit, self.ques_limit = para_limit, ques_limit
         self.char_limit = char_limit
         self.sent_limit = sent_limit
-
+        self.para_limit = 2250
+        # self.ques_limit = 2250
         self.num_buckets = len(self.buckets)
         self.bkt_pool = [i for i in range(self.num_buckets) if len(self.buckets[i]) > 0]
         if shuffle:
@@ -46,28 +47,28 @@ class DataIterator(object):
         self.shuffle = shuffle
 
     def __iter__(self):
-        # context_idxs = torch.LongTensor(self.bsz, self.para_limit).cpu()
-        # ques_idxs = torch.LongTensor(self.bsz, self.ques_limit).cpu()
-        # context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cpu()
-        # ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cpu()
-        # y1 = torch.LongTensor(self.bsz).cpu()
-        # y2 = torch.LongTensor(self.bsz).cpu()
-        # q_type = torch.LongTensor(self.bsz).cpu()
-        # start_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
-        # end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
-        # all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
-        # is_support = torch.LongTensor(self.bsz, self.sent_limit).cpu()
-        context_idxs = torch.LongTensor(self.bsz, self.para_limit).cuda()
-        ques_idxs = torch.LongTensor(self.bsz, self.ques_limit).cuda()
-        context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cuda()
-        ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cuda()
-        y1 = torch.LongTensor(self.bsz).cuda()
-        y2 = torch.LongTensor(self.bsz).cuda()
-        q_type = torch.LongTensor(self.bsz).cuda()
-        start_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
-        end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
-        all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
-        is_support = torch.LongTensor(self.bsz, self.sent_limit).cuda()
+        context_idxs = torch.LongTensor(self.bsz, self.para_limit, 50).cpu()
+        ques_idxs = torch.LongTensor(self.bsz, self.ques_limit, 50).cpu()
+        context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cpu()
+        ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cpu()
+        y1 = torch.LongTensor(self.bsz).cpu()
+        y2 = torch.LongTensor(self.bsz).cpu()
+        q_type = torch.LongTensor(self.bsz).cpu()
+        start_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
+        end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
+        all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
+        is_support = torch.LongTensor(self.bsz, self.sent_limit).cpu()
+        # context_idxs = torch.LongTensor(self.bsz, self.para_limit).cuda()
+        # ques_idxs = torch.LongTensor(self.bsz, self.ques_limit).cuda()
+        # context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cuda()
+        # ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cuda()
+        # y1 = torch.LongTensor(self.bsz).cuda()
+        # y2 = torch.LongTensor(self.bsz).cuda()
+        # q_type = torch.LongTensor(self.bsz).cuda()
+        # start_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
+        # end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
+        # all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
+        # is_support = torch.LongTensor(self.bsz, self.sent_limit).cuda()
 
         while True:
             if len(self.bkt_pool) == 0: break
@@ -87,6 +88,7 @@ class DataIterator(object):
             is_support.fill_(IGNORE_INDEX)
 
             for i in range(len(cur_batch)):
+                print (80*'*', 'type!!!!', type(cur_batch[i]['context_idxs']))
                 context_idxs[i].copy_(cur_batch[i]['context_idxs'])
                 ques_idxs[i].copy_(cur_batch[i]['ques_idxs'])
                 context_char_idxs[i].copy_(cur_batch[i]['context_char_idxs'])
@@ -137,7 +139,7 @@ class DataIterator(object):
                 'ques_idxs': ques_idxs[:cur_bsz, :max_q_len].contiguous(),
                 'context_char_idxs': context_char_idxs[:cur_bsz, :max_c_len].contiguous(),
                 'ques_char_idxs': ques_char_idxs[:cur_bsz, :max_q_len].contiguous(),
-                'context_lens': input_lengths,
+                'context_lens': input_lengths[:,0],
                 'y1': y1[:cur_bsz],
                 'y2': y2[:cur_bsz],
                 'ids': ids,

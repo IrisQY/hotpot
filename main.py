@@ -61,6 +61,7 @@ parser.add_argument('--hidden', type=int, default=80)
 parser.add_argument('--char_hidden', type=int, default=100)
 parser.add_argument('--patience', type=int, default=1)
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--total_num_of_buckets', type=int, default=10)
 
 parser.add_argument('--sp_lambda', type=float, default=0.0)
 
