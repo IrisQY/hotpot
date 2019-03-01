@@ -88,7 +88,6 @@ class DataIterator(object):
             is_support.fill_(IGNORE_INDEX)
 
             for i in range(len(cur_batch)):
-                print (80*'*', 'type!!!!', type(cur_batch[i]['context_idxs']))
                 context_idxs[i].copy_(cur_batch[i]['context_idxs'])
                 ques_idxs[i].copy_(cur_batch[i]['ques_idxs'])
                 context_char_idxs[i].copy_(cur_batch[i]['context_char_idxs'])

@@ -36,7 +36,7 @@ class SPModel(nn.Module):
             )
 
         self.rnn_2 = EncoderRNN(config.hidden, config.hidden, 1, False, True, 1-config.keep_prob, False)
-        self.self_att = BiAttention(config.hidden*2, 1-config.keep_prob)
+        self.self_att = Self_BiAttention(config.hidden*2, 1-config.keep_prob)
         self.linear_2 = nn.Sequential(
                 nn.Linear(config.hidden*8, config.hidden),
                 nn.ReLU()
@@ -93,7 +93,7 @@ class SPModel(nn.Module):
         context_output = self.rnn(context_output, context_lens)
         ques_output = self.rnn(ques_output)
 
-        output = self.qc_att(context_output, ques_output, ques_mask)
+        output = self.qc_att(context_output, ques_output, ques_mask, all_mapping)
         output = self.linear_1(output)
 
         output_t = self.rnn_2(output, context_lens)
@@ -205,6 +205,41 @@ class EncoderRNN(nn.Module):
         return outputs[-1]
 
 class BiAttention(nn.Module):
+    def __init__(self, input_size, dropout):
+        super().__init__()
+        self.dropout = LockedDropout(dropout)
+        self.input_linear = nn.Linear(input_size, 1, bias=False)
+        self.memory_linear = nn.Linear(input_size, 1, bias=False)
+
+        self.dot_scale = nn.Parameter(torch.Tensor(input_size).uniform_(1.0 / (input_size ** 0.5)))
+
+    def forward(self, input, memory, mask, all_mapping):
+        bsz, input_len, memory_len = input.size(0), input.size(1), memory.size(1)
+
+        input = self.dropout(input)
+        memory = self.dropout(memory)
+
+        input_dot = self.input_linear(input) #(bsz, context_len, 1)
+        memory_dot = self.memory_linear(memory).view(bsz, 1, memory_len) #(bsz, 1, ques_len)
+        cross_dot = torch.bmm(input * self.dot_scale, memory.permute(0, 2, 1).contiguous()) #(bsz, context_len, ques_len)
+        pre_att = input_dot + memory_dot + cross_dot
+        pre_att = pre_att - 1e30 * (1 - mask[:,None]) #(bsz, context_len, ques_len)
+        att = torch.zeros_like(pre_att)
+        # all_mapping (bsz, context_len, num_sents)
+        for j in range(all_mapping.size()[2]):
+            sent_mask = all_mapping[:,:,j].unsqueeze(dim = 2) # (bsz, context_len, 1), j-th sentence
+            sent_att = pre_att*sent_mask # (bsz, context_len, ques_len), j-th sentence
+            new_att = torch.max(sent_att, 1)[0].unsqueeze(dim = 1) # (bsz, 1, ques_len)
+            att += torch.bmm(sent_mask,new_att)*pre_att
+
+        weight_one = F.softmax(att, dim=-1)
+        output_one = torch.bmm(weight_one, memory)
+        weight_two = F.softmax(att.max(dim=-1)[0], dim=-1).view(bsz, 1, input_len)
+        output_two = torch.bmm(weight_two, input)
+
+        return torch.cat([input, output_one, input*output_one, output_two*output_one], dim=-1)
+
+class Self_BiAttention(nn.Module):
     def __init__(self, input_size, dropout):
         super().__init__()
         self.dropout = LockedDropout(dropout)
