@@ -62,6 +62,7 @@ python main.py --mode prepro --data_file hotpot_dev_distractor_v1.json --para_li
 Preprocess the dev set in the full wiki setting:
 ```
 python main.py --mode prepro --data_file hotpot_dev_fullwiki_v1.json --data_split dev --fullwiki --para_limit 2250
+python main.py --mode prepro --data_file hotpot_dev_fullwiki_v1.json --data_split dev --fullwiki --para_limit 2250 --num_per_bucket 2000
 ```
 
 Note that the training set has to be preprocessed before the dev sets because some vocabulary and embedding files are produced
@@ -71,8 +72,9 @@ when the training set is processed.
 
 Train a model
 ```
-CUDA_VISIBLE_DEVICES=0 python main.py --mode train --para_limit 2250 --batch_size 24 --init_lr 0.1 --keep_prob 1.0 \ 
---sp_lambda 1.0
+CUDA_VISIBLE_DEVICES=0 python main.py --mode train --para_limit 2250 --batch_size 24 --init_lr 0.1 --keep_prob 1.0 --sp_lambda 1.0
+# For split data
+CUDA_VISIBLE_DEVICES=0 python main.py --mode train --para_limit 2250 --batch_size 24 --init_lr 0.1 --keep_prob 1.0 --sp_lambda 1.0 --total_num_of_buckets 10
 ```
 
 Our implementation supports running on multiple GPUs. Remove the `CUDA_VISIBLE_DEVICES` variable to run on all GPUs you have
