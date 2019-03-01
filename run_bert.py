@@ -765,7 +765,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--bert_model", default="bert-large-uncased", type=str, 
+    parser.add_argument("--bert_model", default="bert-base-uncased", type=str, 
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                         "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
                         "bert-base-multilingual-cased, bert-base-chinese.")
@@ -774,7 +774,7 @@ def main():
 
     ## Other parameters
     parser.add_argument("--train_file", default="train_eval.json", type=str, help="SQuAD json for training. E.g., train-v1.1.json")
-    parser.add_argument("--predict_file", default="train_eval.json", type=str,
+    parser.add_argument("--predict_file", default="dev_eval.json", type=str,
                         help="SQuAD json for predictions. E.g., dev-v1.1.json or test-v1.1.json")
     parser.add_argument("--max_seq_length", default=512, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences "
@@ -786,7 +786,7 @@ def main():
                              "be truncated to this length.")
     parser.add_argument("--do_train", default=True, action='store_true', help="Whether to run training.")
     parser.add_argument("--do_predict", default=True, action='store_true', help="Whether to run eval on the dev set.")
-    parser.add_argument("--train_batch_size", default=32, type=int, help="Total batch size for training.")
+    parser.add_argument("--train_batch_size", default=16, type=int, help="Total batch size for training.")
     parser.add_argument("--predict_batch_size", default=8, type=int, help="Total batch size for predictions.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--num_train_epochs", default=3.0, type=float,
@@ -846,7 +846,7 @@ def main():
     else:
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
+        n_gpu = 4
         # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.distributed.init_process_group(backend='nccl')
     logger.info("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
