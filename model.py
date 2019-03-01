@@ -11,12 +11,18 @@ from allennlp.modules.elmo import Elmo, batch_to_ids
 
 options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+elmo = Elmo(options_file, weight_file, 2, dropout=0)
+
 
 class Model(nn.Module):
     def __init__(self, config, word_mat, char_mat):
         super().__init__()
         self.config = config
+        # self.word_dim = config.glove_dim
         self.word_dim = 1024
+        # self.word_emb = nn.Embedding(len(word_mat), len(word_mat[0]), padding_idx=0)
+        # self.word_emb.weight.data.copy_(torch.from_numpy(word_mat))
+        # self.word_emb.weight.requires_grad = False
         self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
         self.char_emb = nn.Embedding(len(char_mat), len(char_mat[0]), padding_idx=0)
         self.char_emb.weight.data.copy_(torch.from_numpy(char_mat))
@@ -76,15 +82,16 @@ class Model(nn.Module):
         context_ch = self.char_cnn(context_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, para_size, -1)
         ques_ch = self.char_cnn(ques_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, ques_size, -1)
 
-        context_word = self.elmo(context_idxs)['elmo_representations']
+        context_word = elmo(context_idxs)['elmo_representations']
         context_word = (context_word[0] + context_word[1])
 
         # ques_word = self.word_emb(ques_idxs)
-        ques_word =  self.elmo(ques_idxs)['elmo_representations']
+        ques_word =  elmo(ques_idxs)['elmo_representations']
         ques_word = (ques_word[0] + ques_word[1])
 
 
         context_output = torch.cat([context_word, context_ch], dim=2)
+        print('after concatenation: ', context_output.size())
         ques_output = torch.cat([ques_word, ques_ch], dim=2)
 
         context_output = self.rnn(context_output, context_lens)
@@ -129,7 +136,6 @@ class Model(nn.Module):
         yp1 = outer.max(dim=2)[0].max(dim=1)[1]
         yp2 = outer.max(dim=1)[0].max(dim=1)[1]
         return logit1, logit2, predict_type, predict_support, yp1, yp2
-
 
 class LockedDropout(nn.Module):
     def __init__(self, dropout):
@@ -183,6 +189,8 @@ class EncoderRNN(nn.Module):
         outputs = []
         if input_lengths is not None:
             lens = input_lengths.data.cpu().numpy()
+            print('Here is variable lens', type(lens), lens)
+            print('input_lengths ', input_lengths)
         for i in range(self.nlayers):
             hidden = self.get_init(bsz, i)
             output = self.dropout(output)
@@ -202,6 +210,21 @@ class EncoderRNN(nn.Module):
             return torch.cat(outputs, dim=2)
         return outputs[-1]
 
+# originally the shape of variables
+# mask torch.Size([5, 23])
+# input torch.Size([5, 1262, 160])
+# memory torch.Size([5, 23, 160])
+# input_dot torch.Size([5, 1262, 1])
+# memory_dot torch.Size([5, 1, 23])
+# corss_dot torch.Size([5, 1262, 23])
+# att torch.Size([5, 1262, 1262])
+
+# The shape of mask torch.Size([5, 23, 50])
+# Inside the Biattention the input has the size of torch.Size([5, 1262, 160])
+# Inside the Biattention the memory has the size of torch.Size([5, 23, 160])
+# The shape of input_dot is torch.Size([5, 1262, 1])
+# The shape of memory_dot is torch.Size([5, 1, 23])
+# The shape of cross_dot is torch.Size([5, 1262, 23])
 class BiAttention(nn.Module):
     def __init__(self, input_size, dropout):
         super().__init__()
@@ -213,14 +236,20 @@ class BiAttention(nn.Module):
 
     def forward(self, input, memory, mask):
         bsz, input_len, memory_len = input.size(0), input.size(1), memory.size(1)
-
+        print('The shape of mask', mask.shape)
         input = self.dropout(input)
         memory = self.dropout(memory)
+        print('Inside the Biattention the input has the size of', input.size())
+        print('Inside the Biattention the memory has the size of', memory.size())
 
         input_dot = self.input_linear(input)
+        print('The shape of input_dot is', input_dot.size())
         memory_dot = self.memory_linear(memory).view(bsz, 1, memory_len)
+        print('The shape of memory_dot is', memory_dot.size())
         cross_dot = torch.bmm(input * self.dot_scale, memory.permute(0, 2, 1).contiguous())
+        print('The shape of cross_dot is', cross_dot.size())
         att = input_dot + memory_dot + cross_dot
+        print('the att shape', att.size())
         att = att - 1e30 * (1 - mask[:,None])
 
         weight_one = F.softmax(att, dim=-1)

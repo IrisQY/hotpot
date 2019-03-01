@@ -18,7 +18,7 @@ char2idx_file = "char2idx.json"
 idx2word_file = 'idx2word.json'
 idx2char_file = 'idx2char.json'
 train_record_file = 'train_record.pkl'
-dev_record_file = 'dev_record.pkl'
+dev_record_file = 'dev_record0.pkl'
 test_record_file = 'test_record.pkl'
 
 
@@ -47,10 +47,10 @@ parser.add_argument('--glove_word_size', type=int, default=int(2.2e6))
 parser.add_argument('--glove_dim', type=int, default=300)
 parser.add_argument('--char_dim', type=int, default=8)
 
-parser.add_argument('--para_limit', type=int, default=2000)
+parser.add_argument('--para_limit', type=int, default=1000)
 parser.add_argument('--ques_limit', type=int, default=80)
 parser.add_argument('--sent_limit', type=int, default=100)
-parser.add_argument('--char_limit', type=int, default=16) #change from 16 to 50
+parser.add_argument('--char_limit', type=int, default=16)
 
 parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--checkpoint', type=int, default=1000)
@@ -61,6 +61,8 @@ parser.add_argument('--hidden', type=int, default=80)
 parser.add_argument('--char_hidden', type=int, default=100)
 parser.add_argument('--patience', type=int, default=1)
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--total_num_of_buckets', type=int, default=10)
+parser.add_argument('--num_per_bucket', type=int, default=2000)
 
 parser.add_argument('--sp_lambda', type=float, default=0.0)
 

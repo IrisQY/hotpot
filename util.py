@@ -1,19 +1,15 @@
 import torch
 import numpy as np
-import string
-import random
-import spacy
-import ujson as json
-from collections import Counter
-
-
-nlp = spacy.blank("en")
-
 import re
-from allennlp.modules.elmo import Elmo, batch_to_ids
-
-options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
-weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+from collections import Counter
+import string
+import pickle
+import random
+from torch.autograd import Variable
+import copy
+import ujson as json
+import traceback
+from tensorboardX import SummaryWriter
 
 IGNORE_INDEX = -100
 
@@ -23,9 +19,6 @@ def has_digit(string):
 
 def prepro(token):
     return token if not has_digit(token) else 'N'
-
-# with open("char2idx.json", "r") as fh:
-#     char2idx_dict = json.load(fh)
 
 class DataIterator(object):
     def __init__(self, buckets, bsz, para_limit, ques_limit, char_limit, shuffle, sent_limit):
@@ -38,14 +31,13 @@ class DataIterator(object):
             para_limit, ques_limit = 0, 0
             for bucket in buckets:
                 for dp in bucket:
-                    # para_limit = max(para_limit, dp['context_idxs'].size(0))
-                    # ques_limit = max(ques_limit, dp['ques_idxs'].size(0))
-                    para_limit = max(para_limit, len(dp['context_tokens']))
-                    ques_limit = max(ques_limit, len(dp['ques_tokens']))
+                    para_limit = max(para_limit, dp['context_idxs'].size(0))
+                    ques_limit = max(ques_limit, dp['ques_idxs'].size(0))
             self.para_limit, self.ques_limit = para_limit, ques_limit
         self.char_limit = char_limit
         self.sent_limit = sent_limit
-
+        self.para_limit = 2250
+        # self.ques_limit = 2250
         self.num_buckets = len(self.buckets)
         self.bkt_pool = [i for i in range(self.num_buckets) if len(self.buckets[i]) > 0]
         if shuffle:
@@ -56,7 +48,7 @@ class DataIterator(object):
 
     def __iter__(self):
         context_idxs = torch.LongTensor(self.bsz, self.para_limit, 50).cpu()
-        ques_idxs = torch.LongTensor(self.bsz, self.ques_limit,50).cpu()
+        ques_idxs = torch.LongTensor(self.bsz, self.ques_limit, 50).cpu()
         context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cpu()
         ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cpu()
         y1 = torch.LongTensor(self.bsz).cpu()
@@ -66,8 +58,8 @@ class DataIterator(object):
         end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
         all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cpu()
         is_support = torch.LongTensor(self.bsz, self.sent_limit).cpu()
-        # context_idxs = torch.LongTensor(self.bsz, self.para_limit,50).cuda()
-        # ques_idxs = torch.LongTensor(self.bsz, self.ques_limit,50).cuda()
+        # context_idxs = torch.LongTensor(self.bsz, self.para_limit).cuda()
+        # ques_idxs = torch.LongTensor(self.bsz, self.ques_limit).cuda()
         # context_char_idxs = torch.LongTensor(self.bsz, self.para_limit, self.char_limit).cuda()
         # ques_char_idxs = torch.LongTensor(self.bsz, self.ques_limit, self.char_limit).cuda()
         # y1 = torch.LongTensor(self.bsz).cuda()
@@ -77,11 +69,6 @@ class DataIterator(object):
         # end_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
         # all_mapping = torch.Tensor(self.bsz, self.para_limit, self.sent_limit).cuda()
         # is_support = torch.LongTensor(self.bsz, self.sent_limit).cuda()
-
-        # def _get_char(char):
-        #     if char in char2idx_dict:
-        #         return char2idx_dict[char]
-        #     return 1
 
         while True:
             if len(self.bkt_pool) == 0: break
@@ -93,40 +80,19 @@ class DataIterator(object):
             ids = []
 
             cur_batch = cur_bucket[start_id: start_id + cur_bsz]
-            # cur_batch.sort(key=lambda x: (x['context_idxs'] > 0).long().sum(), reverse=True)
-            cur_batch.sort(key=lambda x: len(x['context_tokens']), reverse=True)
+            cur_batch.sort(key=lambda x: (x['context_idxs'] > 0).long().sum(), reverse=True)
 
             max_sent_cnt = 0
             for mapping in [start_mapping, end_mapping, all_mapping]:
                 mapping.zero_()
             is_support.fill_(IGNORE_INDEX)
 
-
             for i in range(len(cur_batch)):
-                # context_idxs[i].copy_(cur_batch[i]['context_idxs'])
-                # ques_idxs[i].copy_(cur_batch[i]['ques_idxs'])
+                print (80*'*', 'type!!!!', type(cur_batch[i]['context_idxs']))
+                context_idxs[i].copy_(cur_batch[i]['context_idxs'])
+                ques_idxs[i].copy_(cur_batch[i]['ques_idxs'])
                 context_char_idxs[i].copy_(cur_batch[i]['context_char_idxs'])
                 ques_char_idxs[i].copy_(cur_batch[i]['ques_char_idxs'])
-
-
-                context_idxs_pre_padded = batch_to_ids([cur_batch[i]['context_tokens']]).squeeze()
-                context_idxs[i][:context_idxs_pre_padded.size()[0],:] = context_idxs_pre_padded
-
-                question_idxs_pre_padded = batch_to_ids([cur_batch[i]["ques_tokens"]]).squeeze()
-                ques_idxs[i][:question_idxs_pre_padded.size()[0],:] = question_idxs_pre_padded
-
-                # for n, token in enumerate(cur_batch[i]["context_chars"]):
-                #     for j, char in enumerate(token):
-                #         if j == self.char_limit:
-                #             break
-                #         context_char_idxs[i, n, j] = _get_char(char)
-                #
-                # for n, token in enumerate(cur_batch[i]["ques_chars"]):
-                #     for j, char in enumerate(token):
-                #         if j == self.char_limit:
-                #             break
-                #         ques_char_idxs[i, n, j] = _get_char(char)
-
                 if cur_batch[i]['y1'] >= 0:
                     y1[i] = cur_batch[i]['y1']
                     y2[i] = cur_batch[i]['y2']
@@ -184,6 +150,7 @@ class DataIterator(object):
                 'all_mapping': all_mapping[:cur_bsz, :max_c_len, :max_sent_cnt]}
 
 def get_buckets(record_file):
+    # datapoints = pickle.load(open(record_file, 'rb'))
     datapoints = torch.load(record_file)
     return [datapoints]
 
@@ -232,6 +199,8 @@ def visualize(tbx, config, pred_dict, eval_path, step, split, num_visuals, ids):
     if num_visuals > len(pred_dict):
         num_visuals = len(pred_dict)
 
+    #visual_ids = np.random.choice(list(pred_dict), size=num_visuals, replace=False)
+
     with open(config.dev_eval_file, 'r') as eval_file:
         eval_dict = json.load(eval_file)
     with open(config.questions_file, 'r') as question_file:
@@ -239,6 +208,7 @@ def visualize(tbx, config, pred_dict, eval_path, step, split, num_visuals, ids):
     for i, id_ in enumerate(ids):
         pred = pred_dict[id_] or 'N/A'
         example = eval_dict[str(id_)]
+        #question = example['question']
         cur_dict = next(item for item in question_dict if item["_id"] == id_)
         question = cur_dict['question']
         context = example['context']
@@ -253,6 +223,66 @@ def visualize(tbx, config, pred_dict, eval_path, step, split, num_visuals, ids):
                      text_string=tbl_fmt.format(question, context, gold, pred),
                      global_step=step)
 
+
+
+
+
+
+# def evaluate(eval_file, answer_dict, full_stats=False):
+#     if full_stats:
+#         with open('qaid2type.json', 'r') as f:
+#             qaid2type = json.load(f)
+#         f1_b = exact_match_b = total_b = 0
+#         f1_4 = exact_match_4 = total_4 = 0
+
+#         qaid2perf = {}
+
+#     f1 = exact_match = total = 0
+#     for key, value in answer_dict.items():
+#         total += 1
+#         ground_truths = eval_file[key]["answer"]
+#         prediction = value
+#         cur_EM = metric_max_over_ground_truths(
+#             exact_match_score, prediction, ground_truths)
+#         # cur_f1 = metric_max_over_ground_truths(f1_score,
+#                                             # prediction, ground_truths)
+#         assert len(ground_truths) == 1
+#         cur_f1, cur_prec, cur_recall = f1_score(prediction, ground_truths[0])
+#         exact_match += cur_EM
+#         f1 += cur_f1
+#         if full_stats and key in qaid2type:
+#             if qaid2type[key] == '4':
+#                 f1_4 += cur_f1
+#                 exact_match_4 += cur_EM
+#                 total_4 += 1
+#             elif qaid2type[key] == 'b':
+#                 f1_b += cur_f1
+#                 exact_match_b += cur_EM
+#                 total_b += 1
+#             else:
+#                 assert False
+
+#         if full_stats:
+#             qaid2perf[key] = {'em': cur_EM, 'f1': cur_f1, 'pred': prediction,
+#                     'prec': cur_prec, 'recall': cur_recall}
+
+#     exact_match = 100.0 * exact_match / total
+#     f1 = 100.0 * f1 / total
+
+#     ret = {'exact_match': exact_match, 'f1': f1}
+#     if full_stats:
+#         if total_b > 0:
+#             exact_match_b = 100.0 * exact_match_b / total_b
+#             exact_match_4 = 100.0 * exact_match_4 / total_4
+#             f1_b = 100.0 * f1_b / total_b
+#             f1_4 = 100.0 * f1_4 / total_4
+#             ret.update({'exact_match_b': exact_match_b, 'f1_b': f1_b,
+#                 'exact_match_4': exact_match_4, 'f1_4': f1_4,
+#                 'total_b': total_b, 'total_4': total_4, 'total': total})
+
+#         ret['qaid2perf'] = qaid2perf
+
+#     return ret
 
 def normalize_answer(s):
 

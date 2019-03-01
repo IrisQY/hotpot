@@ -10,6 +10,7 @@ from torch.nn.utils import rnn
 from allennlp.modules.elmo import Elmo, batch_to_ids
 options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+elmo = Elmo(options_file, weight_file, 2, dropout=0)
 
 class SPModel(nn.Module):
     def __init__(self, config, word_mat, char_mat):
@@ -19,8 +20,6 @@ class SPModel(nn.Module):
         # self.word_emb = nn.Embedding(len(word_mat), len(word_mat[0]), padding_idx=0)
         # self.word_emb.weight.data.copy_(torch.from_numpy(word_mat))
         # self.word_emb.weight.requires_grad = False
-        self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
-
         self.char_emb = nn.Embedding(len(char_mat), len(char_mat[0]), padding_idx=0)
         self.char_emb.weight.data.copy_(torch.from_numpy(char_mat))
 
@@ -80,19 +79,17 @@ class SPModel(nn.Module):
         context_ch = self.char_cnn(context_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, para_size, -1)
         ques_ch = self.char_cnn(ques_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, ques_size, -1)
 
-        context_word = self.elmo(context_idxs)['elmo_representations']
+        context_word = elmo(context_idxs)['elmo_representations']
         context_word = (context_word[0] + context_word[1])
 
         # ques_word = self.word_emb(ques_idxs)
-        ques_word = self.elmo(ques_idxs)['elmo_representations']
+        ques_word =  elmo(ques_idxs)['elmo_representations']
         ques_word = (ques_word[0] + ques_word[1])
 
-        # print(context_word.size())
-        # print(context_ch.size())
+
         context_output = torch.cat([context_word, context_ch], dim=2)
         ques_output = torch.cat([ques_word, ques_ch], dim=2)
 
-        # print(context_output.size())
         context_output = self.rnn(context_output, context_lens)
         ques_output = self.rnn(ques_output)
 
