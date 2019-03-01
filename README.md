@@ -55,8 +55,8 @@ There are other keys that are not used in our code, but might be used for other 
 
 Preprocess the training and dev sets in the distractor setting:
 ```
-python main.py --mode prepro --data_file hotpot_train_v1.1.json --para_limit 2250 --data_split train
-python main.py --mode prepro --data_file hotpot_dev_distractor_v1.json --para_limit 2250 --data_split dev
+python main.py --mode prepro --data_file hotpot_train_v1.1.json --para_limit 2250 --data_split train --num_per_bucket 2000
+python main.py --mode prepro --data_file hotpot_dev_distractor_v1.json --para_limit 2250 --data_split dev --num_per_bucket 100000000
 ```
 
 Preprocess the dev set in the full wiki setting:
