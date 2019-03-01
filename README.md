@@ -124,3 +124,6 @@ adapted from https://rajpurkar.github.io/SQuAD-explorer/ .
 
 
 
+###
+1) python main.py --mode prepro_bert --data_file <choose data file> --para_limit 2250 --data_split train
+2) python run_bert.py --bert_model <choice of bert model> --output_dir <> --train_file <> --predict_file <> --do_lower_case < match with bert> 
