@@ -1,5 +1,6 @@
 import os
 from prepro import prepro
+from prepro_bert import prepro_bert
 from run import train, test
 import argparse
 
@@ -11,15 +12,15 @@ questions_file = "toy_dev.json"
 word_emb_file = "word_emb.json"
 char_emb_file = "char_emb.json"
 train_eval = "train_eval.json"
-dev_eval = "dev_eval.json"
-test_eval = "test_eval.json"
+dev_eval = "train_eval.json"
+test_eval = "train_eval.json"
 word2idx_file = "word2idx.json"
 char2idx_file = "char2idx.json"
 idx2word_file = 'idx2word.json'
 idx2char_file = 'idx2char.json'
 train_record_file = 'train_record.pkl'
-dev_record_file = 'dev_record.pkl'
-test_record_file = 'test_record.pkl'
+dev_record_file = 'train_record.pkl'
+test_record_file = 'train_record.pkl'
 
 
 parser.add_argument('--mode', type=str, default='train')
@@ -87,6 +88,8 @@ if config.mode == 'train':
     train(config)
 elif config.mode == 'prepro':
     prepro(config)
+elif config.mode == 'prepro_bert':
+    prepro_bert(config)
 elif config.mode == 'test':
     test(config)
 elif config.mode == 'count':
