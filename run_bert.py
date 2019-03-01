@@ -769,7 +769,7 @@ def main():
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                         "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
                         "bert-base-multilingual-cased, bert-base-chinese.")
-    parser.add_argument("--output_dir", default="squad_bert", type=str, 
+    parser.add_argument("--output_dir", default="squad_bert_01", type=str, 
                         help="The output directory where the model checkpoints and predictions will be written.")
 
     ## Other parameters
