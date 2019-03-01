@@ -1,7 +1,7 @@
 import tqdm
 
 
-def create_example_dict(context, answer_start, answer, id, is_impossible, question, support_device):
+def create_example_dict(context, answer_start, answer, id, is_impossible, question):
     return {
         "context": context,
         "qas": [
@@ -10,7 +10,7 @@ def create_example_dict(context, answer_start, answer, id, is_impossible, questi
                 "id": id,
                 "is_impossible": is_impossible,
                 "question": question,
-                "support device": support_device,
+                #"support device": support_device,
             }
         ],
     }
@@ -35,7 +35,7 @@ def convert_hotpot_to_squad_format(
     for example in json_dict:
         raw_contexts = example["context"]
 
-        
+
         # for j, cur_sp_dp in enumerate(cur_batch[i]['start_end_facts']):
         #     if j >= self.sent_limit: break
         #     if len(cur_sp_dp) == 3:
