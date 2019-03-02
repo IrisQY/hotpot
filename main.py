@@ -87,6 +87,8 @@ if config.mode == 'train':
     train(config)
 elif config.mode == 'prepro':
     prepro(config)
+elif config.mode == 'prepro_bert':
+    prepro_bert(config)
 elif config.mode == 'test':
     test(config)
 elif config.mode == 'count':
